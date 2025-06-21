@@ -1,0 +1,5 @@
+.dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px; /* optional: space between cards */
+}

@@ -1,0 +1,17 @@
+# Ignore node_modules directory
+node_modules/
+
+# Ignore executables (common extensions)
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Ignore logs
+*.log
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
