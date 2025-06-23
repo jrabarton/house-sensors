@@ -5,6 +5,7 @@
 #include <time.h>
 #include <DHT.h>
 #include "secrets.h"
+#include <vector>
 
 // Room name
 const char* roomName = "office";
@@ -25,9 +26,35 @@ DHT dht(DHTPIN, DHTTYPE);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+struct MqttMessage {
+  String topic;
+  String payload;
+};
+
+std::vector<MqttMessage> messageQueue;
+
+// Helper to enqueue a message
+void enqueueMessage(const String& topic, const String& payload) {
+  Serial.println("Enqueuing message: " + payload + " to topic: " + topic);
+  const size_t MAX_QUEUE = 60 * 12;
+  if (messageQueue.size() == MAX_QUEUE) {
+    messageQueue.erase(messageQueue.begin());
+  }
+  messageQueue.push_back({topic, payload});
+}
+
+// Helper to send all queued messages
+void sendQueuedMessages() {
+  while (!messageQueue.empty() && client.connected()) {
+    MqttMessage& msg = messageQueue.front();
+    Serial.println("Sending queued message to topic: " + msg.topic);
+    client.publish(msg.topic.c_str(), msg.payload.c_str());
+    messageQueue.erase(messageQueue.begin());
+  }
+}
+
 void setup_wifi() {
   WiFi.mode(WIFI_STA);
-
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -37,18 +64,12 @@ void setup_wifi() {
 }
 
 void reconnect() {
-  Serial.print("Attempting MQTT connection...");
-  while (!client.connected()) {
     client.connect(mqtt_client_id, mqtt_user, mqtt_pass);
-    delay(500);
-  }
-  Serial.println("Connected to MQTT broker");
 }
 
 void setup() {
   delay(5000);
   Serial.begin(9600); // Use 9600 baud rate for ESP8266
-  Serial.println("Starting setup...");
   setup_wifi();
 
   // Set time via NTP
@@ -74,11 +95,9 @@ void setup() {
   }
 
   // Initialize MQTT client
-  Serial.println("Initializing MQTT client...");
   client.setServer(mqtt_server, mqtt_port);
   Serial.println("MQTT client initialized.");
 
-  Serial.println("Connecting to DHT sensor");
   dht.begin(); // Initialize DHT sensor
   Serial.println("DHT sensor initialized.");
 }
@@ -94,44 +113,47 @@ String getISO8601Time() {
   return String(buf);
 }
 
+unsigned long lastPublish = 0;
+const unsigned long publishInterval = 60000; // 1 minute
+
 void loop() {
-  if (!client.connected()) {
-    reconnect();
+  unsigned long nowMillis = millis();
+  Serial.print("Current since last publish: ");
+  Serial.println(nowMillis - lastPublish);
+
+  if (nowMillis - lastPublish >= publishInterval) {
+    lastPublish = nowMillis;
+
+    float humidity = dht.readHumidity();
+    float temperature = dht.readTemperature();
+
+    if (isnan(temperature) || isnan(humidity)) {
+      Serial.println("Failed to read from DHT sensor!");
+      return;
+    }
+
+    String timestamp = getISO8601Time();
+
+    String payload = "{";
+    payload += "\"room\":\"" + String(roomName) + "\",";
+    payload += "\"temperature\":" + String(temperature, 1) + ",";
+    payload += "\"humidity\":" + String(humidity, 1) + ",";
+    payload += "\"timestamp\":\"" + timestamp + "\"";
+    payload += "}";
+
+    String topic = "home/";
+    String roomNoSpaces = String(roomName);
+    roomNoSpaces.replace(" ", "");
+    topic += roomNoSpaces;
+
+    enqueueMessage(topic, payload);
+
+    if (!client.connected()) {
+      reconnect();
+    }
+
+    if (client.connected()) {
+      sendQueuedMessages();
+    }
   }
-  client.loop();
-
-  // Read temperature and humidity from DHT11
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
-
-  // Check if any reads failed
-  if (isnan(temperature) || isnan(humidity)) {
-    Serial.println("Failed to read from DHT sensor!");
-    delay(2000);
-    return;
-  }
-
-  // Get ISO8601 timestamp
-  String timestamp = getISO8601Time();
-
-  // Prepare JSON payload
-  String payload = "{";
-  payload += "\"room\":\"" + String(roomName) + "\",";
-  payload += "\"temperature\":" + String(temperature, 1) + ",";
-  payload += "\"humidity\":" + String(humidity, 1) + ",";
-  payload += "\"timestamp\":\"" + timestamp + "\"";
-  payload += "}";
-
-  // Prepare topic with spaces removed from roomName
-  String topic = "home/";
-  String roomNoSpaces = String(roomName);
-  roomNoSpaces.replace(" ", "");
-  topic += roomNoSpaces;
-
-  Serial.println("Publishing: " + payload);
-  Serial.println("Topic: " + topic);
-
-  client.publish(topic.c_str(), payload.c_str());
-
-  delay(60000); // Wait 1 minute
 }
