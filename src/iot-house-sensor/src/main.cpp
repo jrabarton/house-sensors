@@ -35,7 +35,6 @@ std::vector<MqttMessage> messageQueue;
 
 // Helper to enqueue a message
 void enqueueMessage(const String& topic, const String& payload) {
-  Serial.println("Enqueuing message: " + payload + " to topic: " + topic);
   const size_t MAX_QUEUE = 60 * 12;
   if (messageQueue.size() == MAX_QUEUE) {
     messageQueue.erase(messageQueue.begin());
@@ -47,7 +46,6 @@ void enqueueMessage(const String& topic, const String& payload) {
 void sendQueuedMessages() {
   while (!messageQueue.empty() && client.connected()) {
     MqttMessage& msg = messageQueue.front();
-    Serial.println("Sending queued message to topic: " + msg.topic);
     client.publish(msg.topic.c_str(), msg.payload.c_str());
     messageQueue.erase(messageQueue.begin());
   }
@@ -59,47 +57,32 @@ void setup_wifi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
-  Serial.print("Connected to WiFi. IP address: ");
-  Serial.println(WiFi.localIP());
 }
 
 void reconnect() {
-    client.connect(mqtt_client_id, mqtt_user, mqtt_pass);
+  client.connect(mqtt_client_id, mqtt_user, mqtt_pass);
 }
 
 void setup() {
-  delay(5000);
-  Serial.begin(9600); // Use 9600 baud rate for ESP8266
   setup_wifi();
 
   // Set time via NTP
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   // Wait for time to be set
-  Serial.print("Waiting for NTP time sync: ");
   time_t now = time(nullptr);
   int retry = 0;
   const int retry_count = 20;
   while (now < 8 * 3600 * 2 && retry < retry_count) {
     delay(500);
-    Serial.print(".");
     now = time(nullptr);
     retry++;
-  }
-  Serial.println();
-
-  if (now < 8 * 3600 * 2) {
-    Serial.println("Failed to get time from NTP server.");
-  } else {
-    Serial.println("Time synchronized.");
   }
 
   // Initialize MQTT client
   client.setServer(mqtt_server, mqtt_port);
-  Serial.println("MQTT client initialized.");
 
   dht.begin(); // Initialize DHT sensor
-  Serial.println("DHT sensor initialized.");
 }
 
 String getISO8601Time() {
@@ -118,8 +101,6 @@ const unsigned long publishInterval = 60000; // 1 minute
 
 void loop() {
   unsigned long nowMillis = millis();
-  Serial.print("Current since last publish: ");
-  Serial.println(nowMillis - lastPublish);
 
   if (nowMillis - lastPublish >= publishInterval) {
     lastPublish = nowMillis;
@@ -128,7 +109,6 @@ void loop() {
     float temperature = dht.readTemperature();
 
     if (isnan(temperature) || isnan(humidity)) {
-      Serial.println("Failed to read from DHT sensor!");
       return;
     }
 
