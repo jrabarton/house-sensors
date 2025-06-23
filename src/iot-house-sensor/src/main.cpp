@@ -9,6 +9,9 @@
 // Room name
 const char* roomName = "office";
 
+// MQTT client ID
+const char* mqtt_client_id = "ESP12E-Office-DHT11";
+
 // NTP server for timestamp
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
@@ -36,7 +39,7 @@ void setup_wifi() {
 void reconnect() {
   Serial.print("Attempting MQTT connection...");
   while (!client.connected()) {
-    client.connect("ESP01Client", mqtt_user, mqtt_pass);
+    client.connect(mqtt_client_id, mqtt_user, mqtt_pass);
     delay(500);
   }
   Serial.println("Connected to MQTT broker");
