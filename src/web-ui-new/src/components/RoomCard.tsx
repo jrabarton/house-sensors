@@ -13,13 +13,15 @@ interface RoomCardProps {
 
 const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
     const [data, setData] = useState<SensorData[]>([]);
-    const [period, setPeriod] = useState<string>('day');
+    const [period, setPeriod] = useState<string>('hour');
 
     const fetchRoomData = async () => {
         try {
             const response = await fetch(`http://localhost:8080/api/room/${room}?period=${period}`);
             const result = await response.json();
-            setData(result);
+            if( result != null){
+                setData(result);
+            }
         } catch (error) {
             console.error(`Error fetching data for ${room}:`, error);
         }
@@ -40,6 +42,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
                         value={period}
                         onChange={(e) => setPeriod(e.target.value)}
                     >
+                        <option value="hour">Hour</option>
                         <option value="day">Day</option>
                         <option value="week">Week</option>
                         <option value="month">Month</option>
@@ -49,7 +52,10 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
             </div>
             <Line
                 data={{
-                    labels: data.map(d => d.period),
+                    labels: data.map(d => {
+                        const date = new Date(d.period + 'Z');
+                        return date.toLocaleTimeString();
+                }),
                     datasets: [
                         {
                             label: 'Temperature',

@@ -30,6 +30,10 @@ func getRoomStats(db *sql.DB) http.HandlerFunc {
 		var dateFormat string
 
 		switch period {
+		case "hour":
+			start = now.Add(-1 * time.Hour)
+			end = now
+			dateFormat = "%Y-%m-%d %H:%i"
 		case "day":
 			start = now.AddDate(0, 0, -1)
 			end = now
