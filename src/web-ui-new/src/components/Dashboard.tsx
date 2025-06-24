@@ -7,7 +7,7 @@ const Dashboard: React.FC = () => {
     const [rooms, setRooms] = useState<string[]>([]);
     const [roomData, setRoomData] = useState<Record<string, RoomData[]>>({});
 
-    const API_BASE = 'http://localhost:8080';
+    const API_BASE = 'http://${window.location.hostname}:8080';
 
     useEffect(() => {
         const fetchRooms = async () => {
