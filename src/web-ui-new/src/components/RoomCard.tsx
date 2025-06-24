@@ -17,7 +17,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
 
     const fetchRoomData = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/api/room/${room}?period=${period}`);
+            const response = await fetch(`http://${window.location.hostname}:8080/api/room/${room}?period=${period}`);
             const result = await response.json();
             if( result != null){
                 setData(result);
